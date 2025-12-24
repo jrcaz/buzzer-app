@@ -13,7 +13,7 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies
+# Install all dependencies (including dev for build)
 RUN npm ci
 
 # ============================================
@@ -35,7 +35,20 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ============================================
-# Stage 3: Runner (Production)
+# Stage 3: Production Dependencies
+# ============================================
+FROM node:20-alpine AS prod-deps
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install only production dependencies
+RUN npm ci --omit=dev
+
+# ============================================
+# Stage 4: Runner (Production)
 # ============================================
 FROM node:20-alpine AS runner
 
@@ -60,7 +73,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/server.ts ./server.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/types ./src/types
 
-# Install tsx for running TypeScript server in production
+# Copy production node_modules (includes socket.io, express, etc.)
+COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+# Copy package.json for module resolution
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+
+# Install tsx globally for running TypeScript server
 RUN npm install -g tsx
 
 # Switch to non-root user
