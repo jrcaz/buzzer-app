@@ -90,37 +90,89 @@ class SoundManager {
   }
 
   /**
-   * Buzz sound - satisfying electronic buzz
-   * Quick, impactful sound when pressing the buzzer
+   * Buzz sound - Classic game show buzzer "BZZZZT"
+   * Authentic buzzer sound like on Jeopardy, Family Feud, etc.
    */
   private playBuzz(ctx: AudioContext): void {
     const now = ctx.currentTime;
+    const duration = 0.4;
 
-    // Main buzz tone
+    // Main buzzer tone - low frequency with harmonics for that classic "BZZZT"
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
     osc1.type = 'sawtooth';
-    osc1.frequency.setValueAtTime(220, now);
-    osc1.frequency.exponentialRampToValueAtTime(110, now + 0.15);
-    gain1.gain.setValueAtTime(0.3, now);
-    gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+    osc1.frequency.setValueAtTime(120, now); // Low fundamental frequency
+    gain1.gain.setValueAtTime(0.25, now);
+    gain1.gain.setValueAtTime(0.25, now + duration * 0.8);
+    gain1.gain.exponentialRampToValueAtTime(0.01, now + duration);
     osc1.connect(gain1);
     gain1.connect(ctx.destination);
     osc1.start(now);
-    osc1.stop(now + 0.15);
+    osc1.stop(now + duration);
 
-    // Impact click
+    // Second harmonic for richness
     const osc2 = ctx.createOscillator();
     const gain2 = ctx.createGain();
-    osc2.type = 'square';
-    osc2.frequency.setValueAtTime(880, now);
-    osc2.frequency.exponentialRampToValueAtTime(220, now + 0.05);
-    gain2.gain.setValueAtTime(0.2, now);
-    gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+    osc2.type = 'sawtooth';
+    osc2.frequency.setValueAtTime(240, now); // First harmonic
+    gain2.gain.setValueAtTime(0.15, now);
+    gain2.gain.setValueAtTime(0.15, now + duration * 0.8);
+    gain2.gain.exponentialRampToValueAtTime(0.01, now + duration);
     osc2.connect(gain2);
     gain2.connect(ctx.destination);
     osc2.start(now);
-    osc2.stop(now + 0.05);
+    osc2.stop(now + duration);
+
+    // Third oscillator for the "electrical" quality
+    const osc3 = ctx.createOscillator();
+    const gain3 = ctx.createGain();
+    osc3.type = 'square';
+    osc3.frequency.setValueAtTime(60, now); // Very low for that rumble
+    gain3.gain.setValueAtTime(0.1, now);
+    gain3.gain.setValueAtTime(0.1, now + duration * 0.8);
+    gain3.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    osc3.connect(gain3);
+    gain3.connect(ctx.destination);
+    osc3.start(now);
+    osc3.stop(now + duration);
+
+    // Attack transient - the initial "click" when button is pressed
+    const clickOsc = ctx.createOscillator();
+    const clickGain = ctx.createGain();
+    clickOsc.type = 'square';
+    clickOsc.frequency.setValueAtTime(1000, now);
+    clickOsc.frequency.exponentialRampToValueAtTime(200, now + 0.03);
+    clickGain.gain.setValueAtTime(0.3, now);
+    clickGain.gain.exponentialRampToValueAtTime(0.01, now + 0.03);
+    clickOsc.connect(clickGain);
+    clickGain.connect(ctx.destination);
+    clickOsc.start(now);
+    clickOsc.stop(now + 0.03);
+
+    // Add some noise for texture (simulates the mechanical buzz)
+    const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+    const noiseData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < noiseBuffer.length; i++) {
+      noiseData[i] = (Math.random() * 2 - 1) * 0.1;
+    }
+    const noiseSource = ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.08, now);
+    noiseGain.gain.setValueAtTime(0.08, now + duration * 0.8);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+    // Filter the noise to make it more buzzy
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.setValueAtTime(300, now);
+    noiseFilter.Q.setValueAtTime(2, now);
+
+    noiseSource.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noiseSource.start(now);
+    noiseSource.stop(now + duration);
   }
 
   /**
